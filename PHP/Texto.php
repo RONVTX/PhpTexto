@@ -1,24 +1,42 @@
 <?php
-$archivo = 'tareas.txt';
-if (!file_exists($archivo)) {
-    file_put_contents($archivo, '');
+
+$archivo_xml = 'tareas.xml';
+// Crear el archivo XML si no existe
+if (!file_exists($archivo_xml)) {
+    $contenido_inicial = '<?xml version="1.0" encoding="UTF-8"?><tareas></tareas>';
+    file_put_contents($archivo_xml, $contenido_inicial);
 }
 
+// Procesar el formulario cuando se envía
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['tarea'])) {
     $nuevaTarea = trim($_POST['tarea']);
     
     if ($nuevaTarea !== '') {
-        file_put_contents($archivo, $nuevaTarea . PHP_EOL, FILE_APPEND);
+        // Cargar el archivo XML
+        $xml = simplexml_load_file($archivo_xml);
+        
+        // Agregar la nueva tarea como un hijo del elemento raíz
+        $xml->addChild('tarea', htmlspecialchars($nuevaTarea, ENT_XML1, 'UTF-8'));
+        
+        // Guardar los cambios en el archivo XML
+        $xml->asXML($archivo_xml);
     }
+    
+    // Redirigir para evitar reenvío del formulario
     header('Location: ' . $_SERVER['PHP_SELF']);
     exit;
 }
 
+// Leer las tareas del archivo XML
 $tareas = [];
-if (file_exists($archivo)) {
-    $contenido = file_get_contents($archivo);
-    if ($contenido !== '') {
-        $tareas = explode(PHP_EOL, trim($contenido));
+if (file_exists($archivo_xml)) {
+    $xml = simplexml_load_file($archivo_xml);
+    
+    // Convertir las tareas XML a un array
+    if ($xml && isset($xml->tarea)) {
+        foreach ($xml->tarea as $tarea) {
+            $tareas[] = (string)$tarea;
+        }
     }
 }
 ?>
@@ -126,11 +144,25 @@ if (file_exists($archivo)) {
             padding: 40px;
             font-style: italic;
         }
+        
+        .info-xml {
+            background: #e8f4f8;
+            border-left: 4px solid #2196F3;
+            padding: 10px 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            color: #555;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Lista de Tareas</h1>
+        
+        <div class="info-xml">
+            Las tareas se guardan en <strong>tareas.xml</strong>
+        </div>
         
         <form method="POST" class="formulario">
             <input 
@@ -148,9 +180,7 @@ if (file_exists($archivo)) {
         <?php else: ?>
             <ul class="lista-tareas">
                 <?php foreach ($tareas as $tarea): ?>
-                    <?php if (!empty($tarea)): ?>
-                        <li><?php echo htmlspecialchars($tarea); ?></li>
-                    <?php endif; ?>
+                    <li><?php echo htmlspecialchars($tarea); ?></li>
                 <?php endforeach; ?>
             </ul>
         <?php endif; ?>
